@@ -1,7 +1,7 @@
 import os
-import sys
 import json
 import threading
+import time
 from datetime import datetime
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -23,12 +23,9 @@ def run_flask():
     port = int(os.environ.get('PORT', 10000))
     flask_app.run(host='0.0.0.0', port=port, debug=False)
 
-# ============================================================
-# 🔥 SIRF RENDER VARIABLES SE LENA HAI
-# ============================================================
+# ============ CONFIG ============
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-OWNER_ID = int(os.environ.get('OWNER_ID', 7760830347))  # ⬅️ UPDATED
-# ============================================================
+OWNER_ID = 7760830347
 
 # ============ FILES ============
 USERS_FILE = "users.json"
@@ -41,17 +38,20 @@ CHANNEL1_NAME = "Main Channel"
 CHANNEL1_LINK = "https://t.me/yourchannel1"
 CHANNEL2_NAME = "Backup Channel"
 CHANNEL2_LINK = "https://t.me/yourchannel2"
-PREMIUM_USERNAME = "PORNxVIP"  # ⬅️ UPDATED
+PREMIUM_USERNAME = "PORNxVIP"
 
-# ============ DATABASE ============
+# ============ DATABASE (FIXED) ============
 def load_json(f, default=None):
     if os.path.exists(f):
         try:
             with open(f, 'r', encoding='utf-8') as x:
-                return json.load(x)
+                data = json.load(x)
+                if data is None:
+                    return default or []
+                return data
         except:
-            return default or {}
-    return default or {}
+            return default or []
+    return default or []
 
 def save_json(f, d):
     with open(f, 'w', encoding='utf-8') as x:
@@ -124,9 +124,11 @@ def register_user(user_id, username, first_name):
 def get_all_users():
     return load_json(USERS_FILE, {})
 
-# ============ LOGS ============
+# ============ LOGS (FIXED) ============
 def add_log(user_id, username, action, details=""):
     logs = load_json(LOGS_FILE, [])
+    if not isinstance(logs, list):
+        logs = []
     logs.append({
         "user_id": user_id,
         "username": username,
@@ -143,68 +145,71 @@ def get_logs():
 # ============ COMMANDS ============
 
 async def start_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
-    first_name = user.first_name or "User"
-    
-    register_user(user_id, username, first_name)
-    add_log(user_id, username, "STARTED BOT", f"First name: {first_name}")
-    
-    if is_banned(user_id):
-        await update.message.reply_text("🚫 You are banned!")
-        return
-    
-    photo_url = "https://i.ibb.co/GfbR62Gt/photo-AQADy-BBr-G3e6c-VZ.jpg"
-    
-    keyboard = [
-        [InlineKeyboardButton(f"📢 {CHANNEL1_NAME}", url=CHANNEL1_LINK)],
-        [InlineKeyboardButton(f"📢 {CHANNEL2_NAME}", url=CHANNEL2_LINK)],
-        [InlineKeyboardButton("💎 Buy Premium", url=f"https://t.me/{PREMIUM_USERNAME}")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    caption = f"""
-👋 Welcome {first_name}!
+    try:
+        user = update.effective_user
+        user_id = user.id
+        username = user.username or "Unknown"
+        first_name = user.first_name or "User"
+        
+        register_user(user_id, username, first_name)
+        add_log(user_id, username, "STARTED BOT")
+        
+        if is_banned(user_id):
+            await update.message.reply_text("🚫 You are banned!")
+            return
+        
+        photo_url = "https://i.ibb.co/GfbR62Gt/photo-AQADy-BBr-G3e6c-VZ.jpg"
+        
+        keyboard = [
+            [InlineKeyboardButton(f"📢 {CHANNEL1_NAME}", url=CHANNEL1_LINK)],
+            [InlineKeyboardButton(f"📢 {CHANNEL2_NAME}", url=CHANNEL2_LINK)],
+            [InlineKeyboardButton("💎 Buy Premium", url=f"https://t.me/{PREMIUM_USERNAME}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        caption = f"""👋 Welcome {first_name}!
 
 📌 Join our channels for updates
 💎 Buy premium for exclusive features
 
-📌 Use /help for commands
-    """
-    
-    await update.message.reply_photo(
-        photo=photo_url,
-        caption=caption,
-        reply_markup=reply_markup
-    )
+Use /help for commands"""
+        
+        await update.message.reply_photo(
+            photo=photo_url,
+            caption=caption,
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def help_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
-    
-    add_log(user_id, username, "HELP COMMAND")
+    user_id = update.effective_user.id
     
     if is_banned(user_id):
         await update.message.reply_text("🚫 You are banned!")
         return
     
-    msg = """
-📌 HELP MENU
+    msg = """📌 HELP MENU
 ========================
 /start - Welcome
 /help - This menu
 /owner - Admin panel (Admins only)
 
+Commands:
+/approve USER_ID - Add admin (Owner only)
+/removeadmin USER_ID - Remove admin (Owner only)
+/ban USER_ID - Ban user (Admin only)
+/unban USER_ID - Unban user (Admin only)
+/users - List all users (Admin only)
+/logs - View logs (Owner only)
 ========================
-    """
+Bot Owner: @PORNxVIP"""
+    
     await update.message.reply_text(msg)
 
 async def owner_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     add_log(user_id, username, "OPENED OWNER PANEL")
     
@@ -212,12 +217,10 @@ async def owner_command(update, context):
         await update.message.reply_text("❌ Admin only!")
         return
     
-    logs = get_logs()
     total_users = len(get_all_users())
-    total_logs = len(logs)
+    total_logs = len(get_logs())
     
-    msg = f"""
-👑 OWNER PANEL
+    msg = f"""👑 OWNER PANEL
 ========================
 User ID: {user_id}
 Total Users: {total_users}
@@ -231,13 +234,13 @@ Admin Commands:
 /users - List all users
 /logs - View logs
 ========================
-    """
+Bot Owner: @PORNxVIP"""
+    
     await update.message.reply_text(msg)
 
 async def approve_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     if user_id != OWNER_ID:
         await update.message.reply_text("❌ Only bot owner can approve!")
@@ -258,9 +261,8 @@ async def approve_command(update, context):
         await update.message.reply_text("❌ Invalid user ID!")
 
 async def removeadmin_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     if user_id != OWNER_ID:
         await update.message.reply_text("❌ Only bot owner can remove admins!")
@@ -281,9 +283,8 @@ async def removeadmin_command(update, context):
         await update.message.reply_text("❌ Invalid user ID!")
 
 async def ban_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     if not is_admin(user_id):
         await update.message.reply_text("❌ Admin only!")
@@ -307,9 +308,8 @@ async def ban_command(update, context):
         await update.message.reply_text("❌ Invalid user ID!")
 
 async def unban_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     if not is_admin(user_id):
         await update.message.reply_text("❌ Admin only!")
@@ -330,9 +330,8 @@ async def unban_command(update, context):
         await update.message.reply_text("❌ Invalid user ID!")
 
 async def users_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     if not is_admin(user_id):
         await update.message.reply_text("❌ Admin only!")
@@ -349,7 +348,8 @@ async def users_command(update, context):
     msg = f"👥 TOTAL USERS: {len(users)}\n========================\n"
     for uid, data in list(users.items())[:20]:
         status = "🚫 BANNED" if is_banned(int(uid)) else "✅ ACTIVE"
-        msg += f"ID: {uid} | @{data.get('username', 'Unknown')} | {status}\n"
+        uname = data.get('username', 'Unknown')
+        msg += f"ID: {uid} | @{uname} | {status}\n"
     
     if len(users) > 20:
         msg += f"\n... and {len(users)-20} more"
@@ -357,9 +357,8 @@ async def users_command(update, context):
     await update.message.reply_text(msg)
 
 async def logs_command(update, context):
-    user = update.effective_user
-    user_id = user.id
-    username = user.username or "Unknown"
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Unknown"
     
     if user_id != OWNER_ID:
         await update.message.reply_text("❌ Only owner can view logs!")
@@ -373,37 +372,45 @@ async def logs_command(update, context):
     
     msg = f"📋 TOTAL LOGS: {len(logs)}\n========================\n"
     for log in list(logs)[-20:]:
-        msg += f"👤 @{log.get('username', 'Unknown')}\n"
-        msg += f"📌 {log.get('action', '')}\n"
-        if log.get('details'):
-            msg += f"📝 {log.get('details', '')}\n"
-        msg += f"🕐 {log.get('time', '')}\n"
-        msg += "------------------------\n"
+        uname = log.get('username', 'Unknown')
+        action = log.get('action', '')
+        details = log.get('details', '')
+        log_time = log.get('time', '')
+        msg += f"👤 @{uname}\n📌 {action}"
+        if details:
+            msg += f"\n📝 {details}"
+        msg += f"\n🕐 {log_time}\n------------------------\n"
     
     await update.message.reply_text(msg)
 
 # ============ MAIN ============
 def main():
+    # Start Flask
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
+    # Give Flask time to start
+    time.sleep(2)
+    
+    # Bot
     application = Application.builder().token(BOT_TOKEN).build()
     
+    # Commands
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("owner", owner_command))
+    application.add_handler(CommandHandler("approve", approve_command))
+    application.add_handler(CommandHandler("removeadmin", removeadmin_command))
     application.add_handler(CommandHandler("ban", ban_command))
     application.add_handler(CommandHandler("unban", unban_command))
     application.add_handler(CommandHandler("users", users_command))
-    application.add_handler(CommandHandler("approve", approve_command))
-    application.add_handler(CommandHandler("removeadmin", removeadmin_command))
     application.add_handler(CommandHandler("logs", logs_command))
     
     print("="*60)
     print("✅ WELCOME BOT STARTED SUCCESSFULLY!")
     print(f"👑 Owner ID: {OWNER_ID}")
-    print(f"📢 Channel 1: {CHANNEL1_NAME} - {CHANNEL1_LINK}")
-    print(f"📢 Channel 2: {CHANNEL2_NAME} - {CHANNEL2_LINK}")
+    print(f"📢 Channel 1: {CHANNEL1_NAME}")
+    print(f"📢 Channel 2: {CHANNEL2_NAME}")
     print(f"💎 Premium: @{PREMIUM_USERNAME}")
     print("="*60)
     
