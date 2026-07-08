@@ -38,8 +38,8 @@ VIDEOS_FILE = "videos.json"
 CHANNEL1_NAME = "🔞 Demo Porn Video"
 CHANNEL1_LINK = "https://t.me/DEMOxPORN"
 
-CHANNEL2_NAME = "🔥 Main Channel"
-CHANNEL2_LINK = "https://t.me/+sqEoZFW78ERlYzU9"
+CHANNEL2_NAME = "🔥 PRIME VIDEOS BABY"
+CHANNEL2_LINK = "https://t.me/+r01wW1uP4so5ZTY1"
 
 PREMIUM_USERNAME = "PORNxVIP"
 WELCOME_PHOTO = "https://i.ibb.co/8wQB8sd/photo-AQADPx-Fr-G3e6c-VZ.jpg"
