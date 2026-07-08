@@ -40,18 +40,18 @@ CHANNEL2_NAME = "Backup Channel"
 CHANNEL2_LINK = "https://t.me/yourchannel2"
 PREMIUM_USERNAME = "PORNxVIP"
 
-# ============ DATABASE (FIXED) ============
+# ============ DATABASE ============
 def load_json(f, default=None):
     if os.path.exists(f):
         try:
             with open(f, 'r', encoding='utf-8') as x:
                 data = json.load(x)
                 if data is None:
-                    return default or []
+                    return default
                 return data
         except:
-            return default or []
-    return default or []
+            return default
+    return default
 
 def save_json(f, d):
     with open(f, 'w', encoding='utf-8') as x:
@@ -89,10 +89,14 @@ def remove_admin(user_id):
 # ============ BANNED ============
 def is_banned(user_id):
     banned = load_json(BANNED_FILE, [])
+    if not isinstance(banned, list):
+        return False
     return str(user_id) in banned
 
 def ban_user(user_id):
     banned = load_json(BANNED_FILE, [])
+    if not isinstance(banned, list):
+        banned = []
     if str(user_id) not in banned:
         banned.append(str(user_id))
         save_json(BANNED_FILE, banned)
@@ -101,15 +105,19 @@ def ban_user(user_id):
 
 def unban_user(user_id):
     banned = load_json(BANNED_FILE, [])
+    if not isinstance(banned, list):
+        banned = []
     if str(user_id) in banned:
         banned.remove(str(user_id))
         save_json(BANNED_FILE, banned)
         return True
     return False
 
-# ============ USERS ============
+# ============ USERS (FIXED) ============
 def register_user(user_id, username, first_name):
     users = load_json(USERS_FILE, {})
+    if not isinstance(users, dict):
+        users = {}
     uid = str(user_id)
     if uid not in users:
         users[uid] = {
@@ -122,9 +130,12 @@ def register_user(user_id, username, first_name):
     return False
 
 def get_all_users():
-    return load_json(USERS_FILE, {})
+    data = load_json(USERS_FILE, {})
+    if not isinstance(data, dict):
+        return {}
+    return data
 
-# ============ LOGS (FIXED) ============
+# ============ LOGS ============
 def add_log(user_id, username, action, details=""):
     logs = load_json(LOGS_FILE, [])
     if not isinstance(logs, list):
@@ -140,7 +151,10 @@ def add_log(user_id, username, action, details=""):
     return True
 
 def get_logs():
-    return load_json(LOGS_FILE, [])
+    data = load_json(LOGS_FILE, [])
+    if not isinstance(data, list):
+        return []
+    return data
 
 # ============ COMMANDS ============
 
@@ -385,17 +399,13 @@ async def logs_command(update, context):
 
 # ============ MAIN ============
 def main():
-    # Start Flask
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    # Give Flask time to start
     time.sleep(2)
     
-    # Bot
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Commands
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("owner", owner_command))
@@ -409,9 +419,6 @@ def main():
     print("="*60)
     print("✅ WELCOME BOT STARTED SUCCESSFULLY!")
     print(f"👑 Owner ID: {OWNER_ID}")
-    print(f"📢 Channel 1: {CHANNEL1_NAME}")
-    print(f"📢 Channel 2: {CHANNEL2_NAME}")
-    print(f"💎 Premium: @{PREMIUM_USERNAME}")
     print("="*60)
     
     application.run_polling()
